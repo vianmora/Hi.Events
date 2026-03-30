@@ -1,5 +1,9 @@
 <div align="center">
 
+> **Unofficial fork** — This is a personal fork of [HiEventsDev/hi.events](https://github.com/HiEventsDev/hi.events). For official support, documentation, and releases, refer to the upstream project.
+
+![Last sync](https://img.shields.io/github/last-commit/vianmora/Hi.Events/develop?label=last%20sync)
+
 <img src="https://hievents-public.s3.us-west-1.amazonaws.com/website/github-banner.png?v=1" alt="Hi.Events - Open Source Event Ticketing Platform" width="100%">
 
 # Hi.Events

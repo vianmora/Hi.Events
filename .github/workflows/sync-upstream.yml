@@ -1,0 +1,109 @@
+name: Sync with upstream
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'  # Every Monday at 06:00 UTC
+  workflow_dispatch:      # Allow manual trigger
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          ref: develop
+          fetch-depth: 0
+          token: ${{ secrets.PAT_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: git remote add upstream https://github.com/HiEventsDev/hi.events.git
+
+      - name: Fetch upstream
+        run: git fetch upstream develop
+
+      - name: Check for new commits
+        id: check
+        run: |
+          UPSTREAM_COMMITS=$(git log HEAD..upstream/develop --oneline | wc -l | tr -d ' ')
+          echo "count=$UPSTREAM_COMMITS" >> $GITHUB_OUTPUT
+          echo "New commits from upstream: $UPSTREAM_COMMITS"
+          if [ "$UPSTREAM_COMMITS" -gt "0" ]; then
+            COMMIT_LOG=$(git log HEAD..upstream/develop --oneline)
+            echo "log<<EOF" >> $GITHUB_OUTPUT
+            echo "$COMMIT_LOG" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Rebase onto upstream
+        id: rebase
+        if: steps.check.outputs.count > 0
+        run: |
+          git rebase upstream/develop 2>&1
+          echo "status=success" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Push if rebase succeeded
+        if: steps.check.outputs.count > 0 && steps.rebase.outputs.status == 'success'
+        run: git push origin develop --force-with-lease
+
+      - name: Open draft PR if rebase has conflicts
+        if: steps.check.outputs.count > 0 && steps.rebase.outputs.status != 'success'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          git rebase --abort || true
+          BRANCH="sync/upstream-$(date +%Y-%m-%d)"
+          # Branch from our develop so the PR branch is always ahead of develop
+          git checkout -b "$BRANCH"
+          # Merge upstream, auto-resolving conflicts in favor of upstream
+          git merge upstream/develop --no-ff -X theirs -m "chore: merge upstream $(date +%Y-%m-%d) [conflicts auto-resolved in favor of upstream]"
+          git push origin "$BRANCH"
+          sleep 5
+          gh pr create \
+            --title "chore: sync with upstream $(date +%Y-%m-%d) [CONFLICTS]" \
+            --body "Automatic upstream sync detected merge conflicts. Review and resolve manually.
+
+          **New upstream commits:**
+          ${{ steps.check.outputs.log }}
+
+          **Note:** Conflicts were auto-resolved in favor of upstream in this PR branch. Fork-specific changes in conflicted files need to be re-applied manually during local resolution.
+
+          **How to resolve locally:**
+          \`\`\`bash
+          git fetch upstream
+          git checkout develop
+          git rebase upstream/develop
+          # Resolve each conflict, then:
+          git add <resolved_files>
+          git rebase --continue
+          # Repeat until done, then:
+          git push origin develop --force-with-lease
+          \`\`\`
+
+          Once \`develop\` is updated, this PR can be closed." \
+            --base develop \
+            --head "$BRANCH" \
+            --draft
+
+      - name: Open summary issue if conflicts
+        if: steps.check.outputs.count > 0 && steps.rebase.outputs.status != 'success'
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          gh label create "sync" --color "0075ca" --description "Upstream sync" --force
+          gh issue create \
+            --title "Upstream sync conflict — $(date +%Y-%m-%d)" \
+            --body "The weekly upstream sync failed due to merge conflicts. A draft PR has been opened for manual resolution." \
+            --label "sync"
