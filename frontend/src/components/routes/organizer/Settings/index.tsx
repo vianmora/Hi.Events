@@ -11,10 +11,10 @@ import { TrackingPixelSettings } from "./Sections/TrackingPixelSettings";
 import { PageBody } from "../../../common/PageBody";
 import { PageTitle } from "../../../common/PageTitle";
 import { t } from "@lingui/macro";
-import { Box, Group, NavLink as MantineNavLink, Stack } from "@mantine/core";
+import { NavLink as MantineNavLink, Stack } from "@mantine/core";
 import { IconAlertTriangle, IconBrandGoogleAnalytics, IconBrandStripe, IconInfoCircle, IconMapPin, IconShare, IconMail, IconCalendarEvent, IconPercentage, IconChartBar } from "@tabler/icons-react";
-import { useMediaQuery } from "@mantine/hooks";
 import { useEffect, useMemo, useState } from "react";
+import styles from "./Settings.module.scss";
 import { Card } from "../../../common/Card";
 import { useLocation, useParams } from "react-router";
 import { useGetAccount } from "../../../../queries/useGetAccount.ts";
@@ -102,7 +102,6 @@ const Settings = () => {
         return baseSections;
     }, [isSaasMode, organizerId]);
 
-    const isLargeScreen = useMediaQuery('(min-width: 1200px)', true);
     const location = useLocation();
     const targetSectionId = useMemo(() => {
         const raw = location.hash?.replace(/^#/, '').split('?')[0] ?? '';
@@ -157,19 +156,12 @@ const Settings = () => {
         <PageBody>
             <PageTitle>{t`Organizer Settings`}</PageTitle>
 
-            {isLargeScreen ? (
-                <Group align="flex-start" gap="md">
-                    <Box w={240} style={{ position: 'sticky', top: 20 }}>
-                        {sideMenu}
-                    </Box>
-                    <Box style={{ flex: 1 }}>{content}</Box>
-                </Group>
-            ) : (
-                <Stack>
-                    {sideMenu}
-                    {content}
-                </Stack>
-            )}
+            <div className={styles.settingsWrapper}>
+                <div className={styles.settingsLayout}>
+                    <div className={styles.sideMenu}>{sideMenu}</div>
+                    <div className={styles.settingsContent}>{content}</div>
+                </div>
+            </div>
         </PageBody>
     );
 }

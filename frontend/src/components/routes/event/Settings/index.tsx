@@ -7,7 +7,7 @@ import {PageTitle} from "../../../common/PageTitle";
 import {t} from "@lingui/macro";
 import {SeoSettings} from "./Sections/SeoSettings";
 import {MiscSettings} from "./Sections/MiscSettings";
-import {Box, Group, NavLink as MantineNavLink, Stack} from "@mantine/core";
+import {NavLink as MantineNavLink, Stack} from "@mantine/core";
 import {
     IconAdjustments,
     IconAlertTriangle,
@@ -21,8 +21,8 @@ import {
     IconPercentage,
     IconRepeat,
 } from "@tabler/icons-react";
-import {useMediaQuery} from "@mantine/hooks";
-import {useEffect, useMemo, useState} from "react";
+import {useMemo, useState} from "react";
+import styles from "./Settings.module.scss";
 import {Card} from "../../../common/Card";
 import {PaymentAndInvoicingSettings} from "./Sections/PaymentSettings";
 import {PlatformFeesSettings} from "./Sections/PlatformFeesSettings";
@@ -118,23 +118,7 @@ export const Settings = () => {
         return baseSections;
     }, [isSaasMode, isRecurring]);
 
-    const isLargeScreen = useMediaQuery('(min-width: 1200px)', true);
-    const [activeSection, setActiveSection] = useState(() => {
-        if (typeof window === 'undefined') return 'event-details';
-        const hash = window.location.hash.replace('#', '');
-        return hash || 'event-details';
-    });
-
-    useEffect(() => {
-        if (typeof window === 'undefined') return;
-        const hash = window.location.hash.replace('#', '');
-        if (hash) {
-            setActiveSection(hash);
-            setTimeout(() => {
-                document.getElementById(hash)?.scrollIntoView({behavior: 'smooth'});
-            }, 100);
-        }
-    }, []);
+    const [activeSection, setActiveSection] = useState('event-details');
 
     const handleClick = (sectionId: string) => {
         setActiveSection(sectionId);
@@ -172,19 +156,12 @@ export const Settings = () => {
                 subheading={t`Configure event details, location, checkout options, and email notifications.`}
             >{t`Event Settings`}</PageTitle>
 
-            {isLargeScreen ? (
-                <Group align="flex-start" gap="md">
-                    <Box w={240} style={{position: 'sticky', top: 20}}>
-                        {sideMenu}
-                    </Box>
-                    <Box style={{flex: 1}}>{content}</Box>
-                </Group>
-            ) : (
-                <Stack>
-                    {sideMenu}
-                    {content}
-                </Stack>
-            )}
+            <div className={styles.settingsWrapper}>
+                <div className={styles.settingsLayout}>
+                    <div className={styles.sideMenu}>{sideMenu}</div>
+                    <div className={styles.settingsContent}>{content}</div>
+                </div>
+            </div>
         </PageBody>
     );
 };
