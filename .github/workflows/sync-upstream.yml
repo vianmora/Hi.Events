@@ -11,7 +11,6 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-      issues: write
 
     steps:
       - name: Checkout fork
@@ -70,8 +69,8 @@ jobs:
           # Merge upstream, auto-resolving conflicts in favor of upstream
           git merge upstream/develop --no-ff -X theirs -m "chore: merge upstream $(date +%Y-%m-%d) [conflicts auto-resolved in favor of upstream]"
           git push origin "$BRANCH"
-          sleep 5
           gh pr create \
+            --repo "$GITHUB_REPOSITORY" \
             --title "chore: sync with upstream $(date +%Y-%m-%d) [CONFLICTS]" \
             --body "Automatic upstream sync detected merge conflicts. Review and resolve manually.
 
@@ -96,14 +95,3 @@ jobs:
             --base develop \
             --head "$BRANCH" \
             --draft
-
-      - name: Open summary issue if conflicts
-        if: steps.check.outputs.count > 0 && steps.rebase.outputs.status != 'success'
-        env:
-          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
-        run: |
-          gh label create "sync" --color "0075ca" --description "Upstream sync" --force
-          gh issue create \
-            --title "Upstream sync conflict — $(date +%Y-%m-%d)" \
-            --body "The weekly upstream sync failed due to merge conflicts. A draft PR has been opened for manual resolution." \
-            --label "sync"
