@@ -2,9 +2,12 @@
 
 namespace HiEvents\Http\Actions\Auth;
 
+use HiEvents\DomainObjects\UserDomainObject;
+use HiEvents\Helper\AuthCookieSameSite;
 use HiEvents\Http\Actions\BaseAction;
 use HiEvents\Resources\Auth\AuthenticatedResponseResource;
 use HiEvents\Services\Application\Handlers\Auth\DTO\AuthenticatedResponseDTO;
+use HiEvents\Services\Domain\Auth\TwoFactor\TrustedDeviceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
@@ -19,7 +22,7 @@ abstract class BaseAuthAction extends BaseAction
             name: 'token',
             value: $token,
             secure: true,
-            sameSite: 'None',
+            sameSite: AuthCookieSameSite::forRequest(request()),
         );
     }
 
@@ -36,9 +39,29 @@ abstract class BaseAuthAction extends BaseAction
         return $response;
     }
 
-    protected function respondWithToken(?string $token, Collection $accounts): JsonResponse
+    protected function addTrustedDeviceCookie(JsonResponse $response, ?string $trustedDeviceToken): void
     {
-        $user = $this->getAuthenticatedUser();
+        if (! $trustedDeviceToken) {
+            return;
+        }
+
+        $response->withCookie(Cookie::make(
+            name: TrustedDeviceService::COOKIE_NAME,
+            value: $trustedDeviceToken,
+            minutes: TrustedDeviceService::TRUST_DAYS * 24 * 60,
+            secure: true,
+            httpOnly: true,
+            sameSite: AuthCookieSameSite::forRequest(request()),
+        ));
+    }
+
+    protected function respondWithToken(
+        ?string $token,
+        Collection $accounts,
+        ?UserDomainObject $user = null,
+        ?int $recoveryCodesRemaining = null,
+    ): JsonResponse {
+        $user ??= $this->getAuthenticatedUser();
 
         return $this->addTokenToResponse(
             response: $this->jsonResponse(new AuthenticatedResponseResource(new AuthenticatedResponseDTO(
@@ -46,6 +69,7 @@ abstract class BaseAuthAction extends BaseAction
                 expiresIn: auth()->factory()->getTTL() * 60,
                 accounts: $accounts,
                 user: $user,
+                recoveryCodesRemaining: $recoveryCodesRemaining,
             ))),
             token: $token
         );

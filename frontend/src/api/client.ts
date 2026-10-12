@@ -1,11 +1,13 @@
 import axios from "axios";
 import {isSsr} from "../utilites/helpers.ts";
 import {getConfig} from "../utilites/config.ts";
+import {applySsrRequestHeaders} from "./ssrRequestHeaders.ts";
 
 const BASE_URL = isSsr()
     ? getConfig('VITE_API_URL_SERVER')
     : getConfig('VITE_API_URL_CLIENT');
 const LOGIN_PATH = "/auth/login";
+export const TWO_FACTOR_SETUP_PATH = "/auth/two-factor-setup";
 const PREVIOUS_URL_KEY = 'previous_url';
 
 // todo - This isn't scalable, we need to better way to manage this
@@ -17,6 +19,7 @@ const ALLOWED_UNAUTHENTICATED_PATHS = [
     'auth',
     'account/payment',
     'checkout',
+    'box-office',
     '/event/',
     'print',
     '/order/',
@@ -34,6 +37,8 @@ export const api = axios.create({
     },
     withCredentials: true,
 });
+
+api.interceptors.request.use(applySsrRequestHeaders);
 
 api.interceptors.response.use(
     (response) => response,
@@ -54,10 +59,19 @@ api.interceptors.response.use(
             return Promise.reject(error);
         }
 
+        if (status === 403 && error.response.data?.error_code === 'TWO_FACTOR_SETUP_REQUIRED') {
+            if (!currentPath.startsWith(TWO_FACTOR_SETUP_PATH)) {
+                window?.location?.replace(TWO_FACTOR_SETUP_PATH);
+            }
+            return Promise.reject(error);
+        }
+
+        if (status === 403 && error.response.data?.error_code === 'FEATURE_UNAVAILABLE') {
+            return Promise.reject(error);
+        }
+
         if (isAuthError && (!isAllowedUnauthenticatedPath || isManageEventPath)) {
-            // Store the current URL before redirecting to the login page
             window?.localStorage?.setItem(PREVIOUS_URL_KEY, window?.location.href);
-            // Preserve query params (UTM tracking) during redirect
             const searchParams = window?.location?.search || '';
             window?.location?.replace(LOGIN_PATH + searchParams);
         }
@@ -67,6 +81,10 @@ api.interceptors.response.use(
 );
 
 axios.defaults.withCredentials = true;
+
+export const setPreviousUrl = (url: string) => {
+    window?.localStorage?.setItem(PREVIOUS_URL_KEY, url);
+};
 
 export const redirectToPreviousUrl = () => {
     const previousUrl = window?.localStorage?.getItem(PREVIOUS_URL_KEY) || '/manage/events';
