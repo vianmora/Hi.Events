@@ -4,7 +4,7 @@
     "description": "hi.events - Ticket selling and event management.",
     "keywords": ["ticketing", "events"],
     "license": "AGPL-3.0",
-    "version": "2.0.0-alpha.1",
+    "version": "2.0.0-beta",
     "require": {
         "php": "^8.3",
         "ext-intl": "*",
@@ -26,6 +26,7 @@
         "maatwebsite/excel": "^4.0",
         "nette/php-generator": "^4.0",
         "php-open-source-saver/jwt-auth": "^2.1",
+        "pragmarx/google2fa": "^8.0",
         "sentry/sentry-laravel": "^4.13",
         "spatie/icalendar-generator": "^3.0",
         "spatie/laravel-data": "^4.15",
@@ -50,6 +51,7 @@
     },
     "autoload": {
         "psr-4": {
+            "HiEvents\\Enterprise\\": "ee/",
             "HiEvents\\": "app/",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
